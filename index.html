@@ -3,61 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GIÁM SÁT MPPT855</title>
+    <title>Hệ Thống MPPT855</title>
+    <!-- Nhúng thư viện Firebase -->
     <script src="https://gstatic.com"></script>
     <script src="https://gstatic.com"></script>
+    
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0b0e14; color: #e0e0e0; text-align: center; padding: 20px; }
-        .container { max-width: 500px; margin: auto; background: #1c2128; padding: 20px; border-radius: 15px; border: 1px solid #30363d; }
-        .data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px; }
-        .box { background: #21262d; padding: 15px; border-radius: 10px; border-bottom: 3px solid #238636; }
-        .val { font-size: 24px; color: #39d353; font-weight: bold; }
-        .unit { font-size: 14px; color: #8b949e; }
-        #status-msg { color: #f1c40f; margin-bottom: 10px; font-weight: bold; }
+        body { background-color: #0f121a; color: white; font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
+        .container { background-color: #1c212d; padding: 20px; border-radius: 15px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #333; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .box { background: #252b39; padding: 15px; border-radius: 10px; border-bottom: 3px solid #2ecc71; }
+        .label { color: #888; font-size: 12px; text-transform: uppercase; }
+        .value { color: #2ecc71; font-size: 24px; font-weight: bold; margin-top: 5px; }
+        input { width: 80%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; text-align: center; }
+        button { padding: 10px 20px; background: #2ecc71; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; }
+        #status { color: #f1c40f; margin: 15px 0; font-size: 14px; }
     </style>
 </head>
 <body>
+
 <div class="container">
     <h2>HỆ THỐNG MPPT855</h2>
-    <div id="status-msg">Đang kiểm tra kết nối...</div>
+    
+    <!-- Phần nhập SĐT để tìm máy -->
+    <input type="text" id="phoneInput" placeholder="Nhập số điện thoại khách">
+    <br>
+    <button onclick="connectFirebase()">KẾT NỐI MÁY</button>
 
-    <div id="monitor" class="data-grid">
-        <div class="box"><div class="unit">V-VÀO</div><div class="val"><span id="vIn">0.0</span><small>V</small></div></div>
-        <div class="box"><div class="unit">V-RA</div><div class="val"><span id="vOut">0.0</span><small>V</small></div></div>
-        <div class="box"><div class="unit">DÒNG SẠC</div><div class="val"><span id="iOut">0.0</span><small>A</small></div></div>
-        <div class="box"><div class="unit">CÔNG SUẤT</div><div class="val"><span id="pNow">0</span><small>W</small></div></div>
+    <div id="status">Vui lòng nhập SĐT để kiểm tra...</div>
+
+    <div class="grid">
+        <div class="box">
+            <div class="label">V-VÀO</div>
+            <div class="value" id="vIn">0.0V</div>
+        </div>
+        <div class="box">
+            <div class="label">V-RA</div>
+            <div class="value" id="vOut">0.0V</div>
+        </div>
+        <div class="box">
+            <div class="label">DÒNG SẠC</div>
+            <div class="value" id="iOut">0.0A</div>
+        </div>
+        <div class="box">
+            <div class="label">CÔNG SUẤT</div>
+            <div class="value" id="pOut">0W</div>
+        </div>
     </div>
 </div>
 
 <script>
+    // 1. Cấu hình Firebase của bạn
     const firebaseConfig = {
-        apiKey: "AIzaSyDEA0sMeMinC9RR2vHnaPojcCVaPkYgEyI",
         databaseURL: "https://firebasedatabase.app"
     };
+
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const database = firebase.database();
 
-    // TỰ ĐỘNG LẤY ID TỪ LINK: phuochuynh855.github.io/MPPT855/?id=xxxx
-    const urlParams = new URLSearchParams(window.location.search);
-    const deviceID = urlParams.get('id');
+    function connectFirebase() {
+        const sdt = document.getElementById("phoneInput").value;
+        const status = document.getElementById("status");
 
-    if (deviceID) {
-        document.getElementById('status-msg').innerText = "Đang xem máy: " + deviceID;
-        db.ref('devices/' + deviceID).on('value', (snapshot) => {
-            const data = snapshot.val();
-            if(data) {
-                document.getElementById('vIn').innerText = data.vIn || "0.0";
-                document.getElementById('vOut').innerText = data.vOut || "0.0";
-                document.getElementById('iOut').innerText = data.iOut || "0.0";
-                document.getElementById('pNow').innerText = data.pNow || "0";
+        if (!sdt) {
+            alert("Bạn chưa nhập số điện thoại!");
+            return;
+        }
+
+        status.innerText = "Đang tìm kiếm thiết bị...";
+
+        // 2. Tìm ChipID từ danh bạ dựa trên SĐT
+        database.ref('danh_ba/' + sdt).once('value').then((snapshot) => {
+            if (snapshot.exists()) {
+                const chipID = snapshot.val();
+                status.innerText = "● Đang trực tuyến (ID: " + chipID + ")";
+                status.style.color = "#2ecc71";
+
+                // 3. Lắng nghe dữ liệu thực tế của ChipID đó
+                database.ref('devices/' + chipID).on('value', (data) => {
+                    const val = data.val();
+                    if (val) {
+                        document.getElementById("vIn").innerText = (val.vIn || 0) + "V";
+                        document.getElementById("vOut").innerText = (val.vOut || 0) + "V";
+                        document.getElementById("iOut").innerText = (val.iOut || 0) + "A";
+                        // Tự tính công suất
+                        let p = (val.vOut * val.iOut).toFixed(1);
+                        document.getElementById("pOut").innerText = p + "W";
+                    }
+                });
             } else {
-                document.getElementById('status-msg').innerText = "Thiết bị chưa có dữ liệu!";
+                status.innerText = "SĐT này chưa được đăng ký!";
+                status.style.color = "#e74c3c";
             }
         });
-    } else {
-        document.getElementById('status-msg').innerText = "LỖI: Link thiếu mã ID máy!";
-        document.getElementById('monitor').style.opacity = "0.3";
     }
 </script>
+
 </body>
 </html>
