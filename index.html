@@ -7,7 +7,7 @@
 body { font-family: Arial, sans-serif; text-align:center; margin:0; padding:0; background:#f5f5f5; }
 .container { max-width:600px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.2); }
 h1 { margin-bottom:30px; }
-.value { font-size:3em; margin:20px 0; }
+.value { font-size:2em; margin:10px 0; }
 .status { font-size:1.2em; margin-top:20px; font-weight:bold; }
 input { font-size:1em; padding:8px; width:200px; margin-right:10px; }
 button { font-size:1em; padding:8px 12px; cursor:pointer; }
@@ -27,6 +27,11 @@ button { font-size:1em; padding:8px 12px; cursor:pointer; }
   <div class="value">vIn: <span id="vin">--</span> V</div>
   <div class="value">vOut: <span id="vout">--</span> V</div>
   <div class="value">iOut: <span id="iout">--</span> A</div>
+  <div class="value">pNow: <span id="pnow">--</span> W</div>
+  <div class="value">eTot: <span id="etot">--</span> Wh</div>
+  <div class="value">tVal: <span id="tval">--</span> °C</div>
+  <div class="value">err: <span id="err">--</span></div>
+
   <div class="status" id="status">Chưa kết nối</div>
 </div>
 
@@ -47,7 +52,7 @@ if(sdt){
 
 function setSDT(){
   const input = document.getElementById('sdtInput').value.trim();
-  if(input.length<5){ alert("Nhập SDT hợp lệ!"); return; }
+  if(input.length<3){ alert("Nhập SDT hợp lệ!"); return; }
   sdt = input;
   localStorage.setItem('sdt', sdt);
   document.getElementById('sdtContainer').style.display='none';
@@ -61,9 +66,14 @@ function updateData(){
     .then(snapshot=>{
       const data = snapshot.val();
       if(data){
-        document.getElementById('vin').innerText = data.vIn.toFixed(2);
-        document.getElementById('vout').innerText = data.vOut.toFixed(2);
-        document.getElementById('iout').innerText = data.iOut.toFixed(2);
+        document.getElementById('vin').innerText = data.vIn !== undefined ? data.vIn.toFixed(2) : "--";
+        document.getElementById('vout').innerText = data.vOut !== undefined ? data.vOut.toFixed(2) : "--";
+        document.getElementById('iout').innerText = data.iOut !== undefined ? data.iOut.toFixed(2) : "--";
+        document.getElementById('pnow').innerText = data.pNow !== undefined ? data.pNow.toFixed(2) : "--";
+        document.getElementById('etot').innerText = data.eTot !== undefined ? data.eTot.toFixed(2) : "--";
+        document.getElementById('tval').innerText = data.tVal !== undefined ? data.tVal.toFixed(2) : "--";
+        document.getElementById('err').innerText = data.err !== undefined ? data.err : "--";
+
         document.getElementById('status').innerText="Đã kết nối";
         document.getElementById('status').style.color="green";
       } else {
