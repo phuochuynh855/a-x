@@ -5,7 +5,7 @@
 <title>MPPT855 Dashboard</title>
 <style>
 body { font-family: Arial, sans-serif; text-align:center; margin:0; padding:0; background:#f5f5f5; }
-.container { max-width: 600px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.2); }
+.container { max-width:600px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.2); }
 h1 { margin-bottom:30px; }
 .value { font-size:3em; margin:20px 0; }
 .status { font-size:1.2em; margin-top:20px; font-weight:bold; }
@@ -20,7 +20,7 @@ button { font-size:1em; padding:8px 12px; cursor:pointer; }
 <div class="container">
   <h1>MPPT855 Dashboard</h1>
   <div id="sdtContainer">
-    <input type="text" id="sdtInput" placeholder="Nhập SĐT thiết bị">
+    <input type="text" id="sdtInput" placeholder="Nhập SDT thiết bị">
     <button onclick="setSDT()">Xem dữ liệu</button>
   </div>
 
@@ -31,60 +31,54 @@ button { font-size:1em; padding:8px 12px; cursor:pointer; }
 </div>
 
 <script>
-  // --- Firebase config ---
-  const firebaseConfig = {
-    apiKey: "AIzaSyDEA0sMeMinC9RR2vHnaPojcCVaPkYgEyI",
-    databaseURL: "https://mppt855-default-rtdb.asia-southeast1.firebasedatabase.app"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+const firebaseConfig = {
+  apiKey: "AIzaSyDEA0sMeMinC9RR2vHnaPojcCVaPkYgEyI",
+  databaseURL: "https://mppt855-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  let sdt = localStorage.getItem('sdt') || null;
+let sdt = localStorage.getItem('sdt') || null;
+if(sdt){
+  document.getElementById('sdtContainer').style.display='none';
+  document.getElementById('status').innerText="Đang kết nối...";
+  document.getElementById('status').style.color="orange";
+}
 
-  // Nếu đã lưu SDT → ẩn input
-  if(sdt){
-    document.getElementById('sdtContainer').style.display = 'none';
-    document.getElementById('status').innerText = "Đang kết nối...";
-    document.getElementById('status').style.color = "orange";
-  }
+function setSDT(){
+  const input = document.getElementById('sdtInput').value.trim();
+  if(input.length<5){ alert("Nhập SDT hợp lệ!"); return; }
+  sdt = input;
+  localStorage.setItem('sdt', sdt);
+  document.getElementById('sdtContainer').style.display='none';
+  document.getElementById('status').innerText="Đang kết nối...";
+  document.getElementById('status').style.color="orange";
+}
 
-  function setSDT() {
-    const input = document.getElementById('sdtInput').value.trim();
-    if(input.length < 5){
-      alert("Vui lòng nhập SĐT hợp lệ!");
-      return;
-    }
-    sdt = input;
-    localStorage.setItem('sdt', sdt);
-    document.getElementById('sdtContainer').style.display = 'none';
-    document.getElementById('status').innerText = "Đang kết nối...";
-    document.getElementById('status').style.color = "orange";
-  }
+function updateData(){
+  if(!sdt) return;
+  db.ref('/devices/'+sdt).once('value')
+    .then(snapshot=>{
+      const data = snapshot.val();
+      if(data){
+        document.getElementById('vin').innerText = data.vIn.toFixed(2);
+        document.getElementById('vout').innerText = data.vOut.toFixed(2);
+        document.getElementById('iout').innerText = data.iOut.toFixed(2);
+        document.getElementById('status').innerText="Đã kết nối";
+        document.getElementById('status').style.color="green";
+      } else {
+        document.getElementById('status').innerText="Chưa có dữ liệu";
+        document.getElementById('status').style.color="orange";
+      }
+    })
+    .catch(err=>{
+      console.log(err);
+      document.getElementById('status').innerText="Lỗi kết nối";
+      document.getElementById('status').style.color="red";
+    });
+}
 
-  function updateData() {
-    if(!sdt) return;
-    db.ref('/devices/' + sdt).once('value')
-      .then(snapshot => {
-        const data = snapshot.val();
-        if(data){
-          document.getElementById('vin').innerText = data.vIn.toFixed(2);
-          document.getElementById('vout').innerText = data.vOut.toFixed(2);
-          document.getElementById('iout').innerText = data.iOut.toFixed(2);
-          document.getElementById('status').innerText = "Đã kết nối";
-          document.getElementById('status').style.color = "green";
-        } else {
-          document.getElementById('status').innerText = "Chưa có dữ liệu";
-          document.getElementById('status').style.color = "orange";
-        }
-      })
-      .catch(err => {
-        console.log(err);
-        document.getElementById('status').innerText = "Lỗi kết nối";
-        document.getElementById('status').style.color = "red";
-      });
-  }
-
-  setInterval(updateData, 2000);
+setInterval(updateData,2000);
 </script>
 
 </body>
