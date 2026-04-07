@@ -64,14 +64,15 @@
         <div id="error" style="color: red; text-align: center; margin-top: 10px; font-weight: bold;"></div>
     </div>
 </div>
-
 <script>
-    // --- CẤU HÌNH FIREBASE (Khớp với code ESP của ông) ---
+    // 1. Cấu hình đầy đủ (Dùng API Key và URL từ code ESP của ông)
     const firebaseConfig = {
-        databaseURL: "https://firebasedatabase.app"
+        apiKey: "AIzaSyDEA0sMeMinC9RR2vHnaPojcCVaPkYgEyI",
+        databaseURL: "https://firebasedatabase.app",
+        projectId: "mppt855-default-rtdb"
     };
 
-    // Khởi tạo Firebase
+    // 2. Khởi tạo
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
@@ -79,35 +80,43 @@
         const sdt = document.getElementById('sdtInput').value.trim();
         if (!sdt) { alert("Vui lòng nhập SDT!"); return; }
 
+        console.log("Đang kết nối tới thiết bị:", sdt);
         document.getElementById('displayArea').style.display = 'block';
+        document.getElementById('lastUpdate').innerText = "Đang tìm dữ liệu trên server...";
+
+        // 3. Đường dẫn phải khớp chính xác với code ESP: /devices/{sdt}
         const deviceRef = database.ref('devices/' + sdt);
 
-        // Lắng nghe dữ liệu thay đổi realtime
         deviceRef.on('value', (snapshot) => {
             const data = snapshot.val();
+            console.log("Dữ liệu nhận được:", data); // Kiểm tra xem có data không
+
             if (data) {
-                document.getElementById('vIn').innerText = data.vIn || 0;
-                document.getElementById('vOut').innerText = data.vOut || 0;
-                document.getElementById('iOut').innerText = data.iOut || 0;
-                document.getElementById('pNow').innerText = data.pNow || 0;
-                document.getElementById('eTot').innerText = data.eTot || 0;
-                document.getElementById('tVal').innerText = data.tVal || 0;
+                // Gán giá trị và làm tròn 1 chữ số thập phân cho đẹp
+                document.getElementById('vIn').innerText = data.vIn || "0.0";
+                document.getElementById('vOut').innerText = data.vOut || "0.0";
+                document.getElementById('iOut').innerText = data.iOut || "0.0";
+                document.getElementById('pNow').innerText = data.pNow || "0.0";
+                document.getElementById('eTot').innerText = data.eTot || "0.0";
+                document.getElementById('tVal').innerText = data.tVal || "0.0";
                 
-                // Hiển thị lỗi nếu có (Er trong code ESP)
-                const errBox = document.getElementById('error');
                 if (data.err > 0) {
-                    errBox.innerText = "Lỗi hệ thống: Code " + data.err;
+                    document.getElementById('error').innerText = "Cảnh báo Lỗi: " + data.err;
                 } else {
-                    errBox.innerText = "";
+                    document.getElementById('error').innerText = "";
                 }
 
-                document.getElementById('lastUpdate').innerText = "Cập nhật mới nhất: " + new Date().toLocaleTimeString();
+                document.getElementById('lastUpdate').innerText = "Cập nhật lúc: " + new Date().toLocaleTimeString();
+                document.getElementById('lastUpdate').style.color = "#28a745";
             } else {
-                document.getElementById('lastUpdate').innerText = "Không tìm thấy thiết bị này!";
+                document.getElementById('lastUpdate').innerText = "Thiết bị này chưa có dữ liệu!";
+                document.getElementById('lastUpdate').style.color = "orange";
             }
+        }, (error) => {
+            console.error("Lỗi Firebase:", error);
+            document.getElementById('lastUpdate').innerText = "Lỗi truy cập: Kiểm tra lại Rules!";
+            document.getElementById('lastUpdate').style.color = "red";
         });
     }
 </script>
 
-</body>
-</html>
