@@ -1,122 +1,90 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giám Sát MPPT855</title>
-    <!-- Import Firebase SDK -->
+    <title>MPPT MONITOR</title>
+    <!-- Sử dụng thư viện bản 8.10 để ổn định nhất -->
     <script src="https://gstatic.com"></script>
     <script src="https://gstatic.com"></script>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
-        h2 { text-align: center; color: #1a73e8; margin-bottom: 20px; }
-        .input-group { margin-bottom: 15px; display: flex; gap: 10px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        button { padding: 10px 15px; background: #1a73e8; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
-        .card { background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center; border-left: 5px solid #1a73e8; }
-        .card label { font-size: 0.8rem; color: #666; display: block; margin-bottom: 5px; }
-        .card span { font-size: 1.2rem; font-weight: bold; color: #333; }
-        .status { text-align: center; font-size: 0.8rem; margin-top: 15px; color: #28a745; }
+        body { font-family: sans-serif; background: #f4f7f9; margin: 0; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #1a73e8; }
+        .input-group { display: flex; gap: 5px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .card { background: #fff; padding: 15px; border-radius: 12px; text-align: center; border: 1px solid #eee; border-left: 4px solid #1a73e8; }
+        .card label { font-size: 12px; color: #777; display: block; margin-bottom: 5px; }
+        .card div { font-size: 18px; font-weight: bold; color: #333; }
+        .status { text-align: center; margin-top: 20px; font-size: 13px; color: #666; font-style: italic; }
+        #error-msg { color: red; text-align: center; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2>MPPT MONITOR</h2>
-    
     <div class="input-group">
-        <input type="text" id="sdtInput" placeholder="Nhập số điện thoại thiết bị...">
-        <button onclick="connectRealtime()">Theo Dõi</button>
+        <input type="text" id="sdt" placeholder="Nhập số điện thoại..." value="0987226855">
+        <button onclick="startMonitor()">Theo Dõi</button>
     </div>
 
-    <div id="displayArea" style="display: none;">
+    <div id="data-panel" style="display:none;">
         <div class="grid">
-            <div class="card">
-                <label>Điện áp vào (Vi)</label>
-                <span id="vIn">0.0</span> V
-            </div>
-            <div class="card">
-                <label>Điện áp ra (Vo)</label>
-                <span id="vOut">0.0</span> V
-            </div>
-            <div class="card">
-                <label>Dòng điện (Io)</label>
-                <span id="iOut">0.0</span> A
-            </div>
-            <div class="card">
-                <label>Công suất (Po)</label>
-                <span id="pNow">0.0</span> W
-            </div>
-            <div class="card">
-                <label>Tổng năng lượng</label>
-                <span id="eTot">0.0</span> Wh
-            </div>
-            <div class="card">
-                <label>Nhiệt độ</label>
-                <span id="tVal">0.0</span> °C
-            </div>
+            <div class="card"><label>Áp vào (Vi)</label><div id="vIn">0.0</div> V</div>
+            <div class="card"><label>Áp ra (Vo)</label><div id="vOut">0.0</div> V</div>
+            <div class="card"><label>Dòng ra (Io)</label><div id="iOut">0.0</div> A</div>
+            <div class="card"><label>Công suất</label><div id="pNow">0.0</div> W</div>
+            <div class="card"><label>Tổng năng lượng</label><div id="eTot">0.0</div> Wh</div>
+            <div class="card"><label>Nhiệt độ</label><div id="tVal">0.0</div> °C</div>
         </div>
-        <div class="status" id="lastUpdate">Đang chờ dữ liệu...</div>
-        <div id="error" style="color: red; text-align: center; margin-top: 10px; font-weight: bold;"></div>
+        <div id="error-msg"></div>
+        <div class="status" id="last-update">Đang kết nối...</div>
     </div>
 </div>
+
 <script>
-    // 1. Cấu hình đầy đủ (Dùng API Key và URL từ code ESP của ông)
-    const firebaseConfig = {
+    // --- CẤU HÌNH ---
+    const config = {
         apiKey: "AIzaSyDEA0sMeMinC9RR2vHnaPojcCVaPkYgEyI",
-        databaseURL: "https://firebasedatabase.app",
-        projectId: "mppt855-default-rtdb"
+        databaseURL: "https://firebasedatabase.app"
     };
+    firebase.initializeApp(config);
+    const db = firebase.database();
 
-    // 2. Khởi tạo
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    function startMonitor() {
+        const sdt = document.getElementById('sdt').value.trim();
+        if(!sdt) return alert("Nhập SDT");
 
-    function connectRealtime() {
-        const sdt = document.getElementById('sdtInput').value.trim();
-        if (!sdt) { alert("Vui lòng nhập SDT!"); return; }
+        document.getElementById('data-panel').style.display = 'block';
+        document.getElementById('last-update').innerText = "Đang lấy dữ liệu...";
 
-        console.log("Đang kết nối tới thiết bị:", sdt);
-        document.getElementById('displayArea').style.display = 'block';
-        document.getElementById('lastUpdate').innerText = "Đang tìm dữ liệu trên server...";
-
-        // 3. Đường dẫn phải khớp chính xác với code ESP: /devices/{sdt}
-        const deviceRef = database.ref('devices/' + sdt);
-
-        deviceRef.on('value', (snapshot) => {
+        // Lắng nghe đường dẫn: /devices/sdt
+        db.ref('devices/' + sdt).on('value', (snapshot) => {
             const data = snapshot.val();
-            console.log("Dữ liệu nhận được:", data); // Kiểm tra xem có data không
-
             if (data) {
-                // Gán giá trị và làm tròn 1 chữ số thập phân cho đẹp
-                document.getElementById('vIn').innerText = data.vIn || "0.0";
-                document.getElementById('vOut').innerText = data.vOut || "0.0";
-                document.getElementById('iOut').innerText = data.iOut || "0.0";
-                document.getElementById('pNow').innerText = data.pNow || "0.0";
-                document.getElementById('eTot').innerText = data.eTot || "0.0";
-                document.getElementById('tVal').innerText = data.tVal || "0.0";
+                document.getElementById('vIn').innerText = data.vIn || 0;
+                document.getElementById('vOut').innerText = data.vOut || 0;
+                document.getElementById('iOut').innerText = data.iOut || 0;
+                document.getElementById('pNow').innerText = data.pNow || 0;
+                document.getElementById('eTot').innerText = data.eTot || 0;
+                document.getElementById('tVal').innerText = data.tVal || 0;
                 
-                if (data.err > 0) {
-                    document.getElementById('error').innerText = "Cảnh báo Lỗi: " + data.err;
-                } else {
-                    document.getElementById('error').innerText = "";
-                }
+                if(data.err > 0) document.getElementById('error-msg').innerText = "Lỗi: " + data.err;
+                else document.getElementById('error-msg').innerText = "";
 
-                document.getElementById('lastUpdate').innerText = "Cập nhật lúc: " + new Date().toLocaleTimeString();
-                document.getElementById('lastUpdate').style.color = "#28a745";
+                document.getElementById('last-update').innerText = "Cập nhật: " + new Date().toLocaleTimeString();
             } else {
-                document.getElementById('lastUpdate').innerText = "Thiết bị này chưa có dữ liệu!";
-                document.getElementById('lastUpdate').style.color = "orange";
+                document.getElementById('last-update').innerText = "Không có dữ liệu cho SDT này!";
             }
         }, (error) => {
-            console.error("Lỗi Firebase:", error);
-            document.getElementById('lastUpdate').innerText = "Lỗi truy cập: Kiểm tra lại Rules!";
-            document.getElementById('lastUpdate').style.color = "red";
+            document.getElementById('last-update').innerText = "Lỗi kết nối: " + error.message;
         });
     }
 </script>
 
+</body>
+</html>
