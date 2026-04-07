@@ -1,67 +1,59 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GIÁM SÁT MPPT855</title>
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
-    <style>
-        body { background: #0f121a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; }
-        .card { background: #1c212d; max-width: 400px; margin: auto; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h2 { color: #2ecc71; letter-spacing: 2px; }
-        input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #333; background: #252b39; color: white; text-align: center; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #2ecc71; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #27ae60; }
-        .status { margin: 15px 0; font-size: 14px; color: #f1c40f; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
-        .box { background: #252b39; padding: 15px; border-radius: 12px; border-bottom: 4px solid #2ecc71; }
-        .label { font-size: 11px; color: #888; margin-bottom: 5px; }
-        .value { font-size: 22px; font-weight: bold; color: #2ecc71; }
-    </style>
+<meta charset="UTF-8">
+<title>MPPT855 Dashboard</title>
+<style>
+body { font-family: Arial; text-align:center; margin-top:50px; }
+.value { font-size: 2em; margin: 20px 0; }
+.status { font-size: 1.2em; margin-top: 10px; color: green; }
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 </head>
 <body>
 
-<div class="card">
-    <h2>HỆ THỐNG MPPT855</h2>
-    <input type="text" id="phoneInput" placeholder="Nhập Số Điện Thoại Của Bạn">
-    <button onclick="startMonitor()">XEM DỮ LIỆU</button>
-    <div id="status">Chưa kết nối</div>
-
-    <div class="grid">
-        <div class="box"><div class="label">V-VÀO</div><div class="value" id="vIn">0.0V</div></div>
-        <div class="box"><div class="label">V-RA</div><div class="value" id="vOut">0.0V</div></div>
-        <div class="box"><div class="label">DÒNG SẠC</div><div class="value" id="iOut">0.0A</div></div>
-        <div class="box"><div class="label">CÔNG SUẤT</div><div class="value" id="pOut">0W</div></div>
-    </div>
-</div>
+<h1>MPPT855 Dashboard</h1>
+<div class="value">vIn: <span id="vin">--</span> V</div>
+<div class="value">vOut: <span id="vout">--</span> V</div>
+<div class="value">iOut: <span id="iout">--</span> A</div>
+<div class="status" id="status">Đang kết nối...</div>
 
 <script>
-    const firebaseConfig = { databaseURL: "https://firebasedatabase.app" };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  // --- Firebase config ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEA0sMeMinC9RR2vHnaPojcCVaPkYgEyI",
+    databaseURL: "https://mppt855-default-rtdb.asia-southeast1.firebasedatabase.app"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-    function startMonitor() {
-        const sdt = document.getElementById("phoneInput").value.trim();
-        if(!sdt) return alert("Vui lòng nhập SĐT!");
+  // Nhập SDT khách
+  const sdt = "0987226855";
 
-        document.getElementById("status").innerText = "Đang kết nối tới máy...";
+  function updateData() {
+    db.ref('/devices/' + sdt).once('value')
+      .then(snapshot => {
+        const data = snapshot.val();
+        if(data){
+          document.getElementById('vin').innerText = data.vIn.toFixed(2);
+          document.getElementById('vout').innerText = data.vOut.toFixed(2);
+          document.getElementById('iout').innerText = data.iOut.toFixed(2);
+          document.getElementById('status').innerText = "Đã kết nối";
+          document.getElementById('status').style.color = "green";
+        } else {
+          document.getElementById('status').innerText = "Chưa có dữ liệu";
+          document.getElementById('status').style.color = "orange";
+        }
+      })
+      .catch(err => {
+        console.log(err);
+        document.getElementById('status').innerText = "Lỗi kết nối";
+        document.getElementById('status').style.color = "red";
+      });
+  }
 
-        db.ref('devices/' + sdt).on('value', (snap) => {
-            const data = snap.val();
-            if(data) {
-                document.getElementById("status").innerText = "● Đang trực tuyến";
-                document.getElementById("status").style.color = "#2ecc71";
-                document.getElementById("vIn").innerText = (data.vIn || 0) + "V";
-                document.getElementById("vOut").innerText = (data.vOut || 0) + "V";
-                document.getElementById("iOut").innerText = (data.iOut || 0) + "A";
-                document.getElementById("pOut").innerText = ((data.vOut || 0) * (data.iOut || 0)).toFixed(1) + "W";
-            } else {
-                document.getElementById("status").innerText = "Không tìm thấy dữ liệu cho số này!";
-                document.getElementById("status").style.color = "#e74c3c";
-            }
-        });
-    }
+  setInterval(updateData, 2000); // Cập nhật mỗi 2 giây
 </script>
 
 </body>
